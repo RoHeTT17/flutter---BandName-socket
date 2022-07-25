@@ -1,8 +1,10 @@
 import 'dart:io';
-
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 
+import 'package:provider/provider.dart';
+
+import 'package:band_names/src/services/socket_service.dart';
 import 'package:band_names/src/models/band.dart';
 
 
@@ -17,21 +19,64 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
 
   List<Band> bands = [
-    Band(id: '1', name:  'Pop', votes: 5),
-    Band(id: '2', name:  'Rock', votes: 5),
-    Band(id: '3', name:  'Clasica', votes: 5),
-    Band(id: '4', name:  'Electronica', votes: 5),
-    Band(id: '5', name:  'Banda', votes: 5),
+    //Se comentan por que ahora se cargaran las del backend
+    // Band(id: '1', name:  'Pop', votes: 5),
+    // Band(id: '2', name:  'Rock', votes: 5),
+    // Band(id: '3', name:  'Clasica', votes: 5),
+    // Band(id: '4', name:  'Electronica', votes: 5),
+    // Band(id: '5', name:  'Banda', votes: 5),
   ];
 
   @override
+  void initState() {
+    
+    final socketServer = Provider.of<SocketService>(context,listen: false);
+     //Escuchar evento del server
+    socketServer.getSocket.on('active-bands', (payload){
+      //Dart lo interpreta como ub objeto dynamic, por lo que se debe mappear
+      //Para esto se castea el payload como List
+      this.bands = (payload as List).map((band) => Band.fromMap(band)).toList();
+
+      setState(() {
+        
+      });
+
+    });
+
+    super.initState();
+  }
+
+@override
+  void dispose() {
+
+    final socketServer = Provider.of<SocketService>(context,listen: false);
+
+    //Dejar de escuchar un evento 
+    socketServer.getSocket.off('active-bands');
+
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+
+    final socketServer = Provider.of<SocketService>(context);
+
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
         title: const Text('BandNames', style: TextStyle(color: Colors.black87),),
         backgroundColor: Colors.white,
         elevation: 1,
+        actions: [
+          Container(
+            margin: const EdgeInsets.only(right: 10),
+            child:  (socketServer.getServerStatus == ServerStatus.Online)
+                   //(socketServer.getServerStatus.name.contains('Online'))
+                   ?       Icon(Icons.check_circle, color: Colors.blue[300],)
+                   : const Icon(Icons.offline_bolt, color: Colors.red,),
+          )
+        ],
       ),
      
       body: ListView.builder(

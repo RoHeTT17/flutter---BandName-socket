@@ -13,7 +13,11 @@ class Band{
   factory Band.fromMap(Map<String, dynamic> obj){
 
       //se utiliza para recibir en el constructor un Map y con ello regresa una nueva instancia.
-      return Band(id: obj['id'], name: obj['name'], votes: obj['votes']);
+      return Band(
+                   id:   obj.containsKey('id')    ? obj['id']   : 'no-id',
+                   name: obj.containsKey('name')  ? obj['name'] : 'no-name',  
+                   votes:obj.containsKey('votes') ? obj['votes']: 'no-votes',
+                 );
 
   }
 
