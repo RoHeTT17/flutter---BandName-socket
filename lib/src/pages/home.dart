@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 
+import 'package:pie_chart/pie_chart.dart';
 import 'package:provider/provider.dart';
 
 import 'package:band_names/src/services/socket_service.dart';
@@ -27,24 +28,39 @@ class _HomePageState extends State<HomePage> {
     // Band(id: '5', name:  'Banda', votes: 5),
   ];
 
-  @override
+@override
   void initState() {
     
     final socketServer = Provider.of<SocketService>(context,listen: false);
      //Escuchar evento del server
-    socketServer.getSocket.on('active-bands', (payload){
-      //Dart lo interpreta como ub objeto dynamic, por lo que se debe mappear
-      //Para esto se castea el payload como List
-      this.bands = (payload as List).map((band) => Band.fromMap(band)).toList();
 
-      setState(() {
+    // Se sustituye por _handleActiveBands
+    // socketServer.getSocket.on('active-bands', (payload){
+    //   //Dart lo interpreta como ub objeto dynamic, por lo que se debe mappear
+    //   //Para esto se castea el payload como List
+
+    //   this.bands = (payload as List).map((band) => Band.fromMap(band)).toList();
+
+    //   setState(() {
         
-      });
+    //   });
 
-    });
+    // });
+    socketServer.getSocket.on('active-bands', _handleActiveBands);
 
     super.initState();
   }
+
+_handleActiveBands( dynamic payload){
+
+  //Dart lo interpreta como ub objeto dynamic, por lo que se debe mappear
+  //Para esto se castea el payload como List
+
+  this.bands = (payload as List).map((band) => Band.fromMap(band)).toList();
+
+  setState(() { });
+
+}
 
 @override
   void dispose() {
@@ -79,9 +95,23 @@ class _HomePageState extends State<HomePage> {
         ],
       ),
      
-      body: ListView.builder(
-        itemCount: bands.length,
-        itemBuilder: (BuildContext context, int index) =>  _bandTile(band: bands[index]),
+      body: Column(
+        children: [
+          
+                    (bands.isNotEmpty)
+                    ? _showGraph(bands)
+                    : const Text('No hay bandas', style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold),),
+
+                    Expanded(
+                      //Se envuelve en un Expanded, para que tome todo el espacio disponible
+                      //al ListView se le debe indicar cual tamaño debe tomar, al estar en un
+                      //column no sabe cuanto espacio tomar.
+                      child: ListView.builder(
+                        itemCount: bands.length,
+                        itemBuilder: (BuildContext context, int index) =>  _bandTile(band: bands[index]),
+                      ),
+                    ),
+                  ],
       ),
 
       floatingActionButton: FloatingActionButton(
@@ -151,13 +181,23 @@ class _HomePageState extends State<HomePage> {
   }
 
   void addBandToList(String name){
+
+
+    final socketService = Provider.of<SocketService>(context,listen: false);
     
     if(name.length>1){
        //podemos agregar 
-       setState(() {
-          bands.add(new Band(id: DateTime.now().toString(), name: name));
-       }); 
+       //código de prueba cuando se estaba creando la app
+       //  setState(() {
+       //     bands.add(new Band(id: DateTime.now().toString(), name: name));
+       //  }); 
+
+       //emitir: add-band {name: name}
+
+      socketService.getEmit('add-band',{'name': name});
+
     }
+
     Navigator.pop(context);
   }
 
@@ -172,12 +212,15 @@ class _bandTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
 
+
+    final socketService = Provider.of<SocketService>(context, listen: false);
+
     return Dismissible(
       key: Key(band.id), //es un identificador unico
       //Para indicar en que direccion se debe mover. Por default se meuve a varios lados
       direction: DismissDirection.startToEnd, 
       onDismissed: (DismissDirection direction){
-            //TODO: llamar el borrado en el server
+            socketService.getEmit('delete-band',{'id':band.id});
       },
 
       background: Container(
@@ -196,9 +239,81 @@ class _bandTile extends StatelessWidget {
         title: Text(band.name!),
         trailing: Text('${band.votes!}', style: const TextStyle(fontSize: 28),),     
         onTap: (){
-          print(band.name!);
+          socketService.getSocket.emit('vote-band',{'id': band.id});
         },                        
       ),
     );
   }
+}
+
+Widget _showGraph(List<Band> bands){
+
+   Map<String, double> dataMap = {};//{
+        //   "Flutter": 5,
+        //   "React": 3,
+        //   "Xamarin": 2,
+        //   "Ionic": 2,
+        // };
+
+  bands.forEach((element) => {
+      //print('name: ${element.name}'),
+      //print('vote ${element.votes}')      
+      dataMap.putIfAbsent(element.name!, () => element.votes!.toDouble())
+
+  });
+
+    final List<Color> colorList = [
+      Colors.blue[50]!,
+      Colors.blue[200]!,
+      Colors.pink[50]!,
+      Colors.pink[200]!,
+      Colors.yellow[50]!,
+      Colors.yellow[200]!,
+    ];
+
+  /*const List<Color> defaultColorList = [
+    Color(0xFFff7675),
+    Color(0xFF74b9ff),
+    Color(0xFF55efc4),
+    Color(0xFFffeaa7),
+    Color(0xFFa29bfe),
+    Color(0xFFfd79a8),
+    Color(0xFFe17055),
+    Color(0xFF00b894),
+  ];*/
+
+  return SizedBox(
+    width: double.infinity,
+    height: 150,
+    child: PieChart(dataMap: dataMap)
+           /* PieChart(
+              dataMap: dataMap,
+              animationDuration: Duration(milliseconds: 800),
+              chartLegendSpacing: 32,
+              //chartRadius: MediaQuery.of(context).size.width / 3.2,
+              colorList: colorList,
+              initialAngleInDegree: 0,
+              chartType: ChartType.ring,
+              ringStrokeWidth: 32,
+              centerText: "HYBRID",
+              legendOptions: LegendOptions(
+                showLegendsInRow: false,
+                legendPosition: LegendPosition.right,
+                showLegends: true,
+                //legendShape: _BoxShape.circle,
+                legendTextStyle: TextStyle(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              chartValuesOptions: ChartValuesOptions(
+                showChartValueBackground: true,
+                showChartValues: true,
+                showChartValuesInPercentage: false,
+                showChartValuesOutside: false,
+                decimalPlaces: 1,
+              ),
+              // gradientList: ---To add gradient colors---
+              // emptyColorGradient: ---Empty Color gradient---
+            )*/
+    ) ;
 }
