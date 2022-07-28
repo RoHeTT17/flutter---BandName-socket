@@ -32,15 +32,21 @@ class SocketService with ChangeNotifier{
 
  void _initConfig(){
 
+   //Para local
+   //final String urlSocket = 'http://172.16.2.25:3000/';
+   
+   //Heroku
+   final String urlSocket = 'https://flutter-socket-server-curso3.herokuapp.com';
+
    // print('Iniciando Socket');
 
-  // Dart client
+   // Dart client
 
     //IO.Socket socket = 
     //IO.io('http://localhost:3000/',{
     //Se volvio privado para controlar como se exponen a las demas pantallas (clase 31)
     //    
-    _socket = IO.io('http://172.16.2.25:3000/',{ //localhost:3000
+    _socket = IO.io(urlSocket,{ //localhost:3000
       'transports' : ['websocket'],//Como será la comunicación
       //Para conectarnos de manera automatica true. Si fuera false y nos quisieramos conectar en 
       //un determinado momento se usuario socket.connect()
